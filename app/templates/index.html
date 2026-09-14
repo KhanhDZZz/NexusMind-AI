@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemma Local Studio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0d1117; color: #c9d1d9; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0d1117; }
+        ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #484f58; }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden">
+
+    <!-- CỘT TRÁI: DANH SÁCH GEMS -->
+    <div class="w-72 bg-[#161b22] border-r border-[#30363d] flex flex-col justify-between p-4">
+        <div>
+            <div class="flex items-center justify-between mb-6">
+                <h1 class="text-xs font-bold uppercase tracking-wider text-gray-400">DANH SÁCH GEM</h1>
+                <button onclick="openCreateGemModal()" class="bg-[#21262d] hover:bg-[#30363d] text-blue-400 text-xs px-3 py-1.5 rounded-md border border-[#30363d] font-medium transition">+ Tạo mới</button>
+            </div>
+            <div id="gem-list" class="space-y-2 overflow-y-auto max-h-[calc(100vh-140px)]"></div>
+        </div>
+        <div class="text-xs text-gray-500 pt-3 border-t border-[#30363d] flex items-center justify-between">
+            <span id="current-model-label">GEMMA4:E2B Engine</span>
+        </div>
+    </div>
+
+    <!-- KHUNG CHÍNH (CHAT & NỘI DUNG) -->
+    <div class="flex-1 flex flex-col bg-[#0d1117] relative">
+        <div class="h-14 border-b border-[#30363d] px-6 flex items-center justify-between bg-[#161b22]">
+            <div>
+                <h2 id="active-gem-title" class="font-bold text-white text-sm">Pikey_bot</h2>
+                <p id="active-gem-desc" class="text-xs text-gray-400">Trợ lý cá nhân</p>
+            </div>
+            <div class="flex items-center space-x-3">
+                <button onclick="toggleKnowledgeBase()" class="bg-[#21262d] hover:bg-[#30363d] text-gray-300 text-xs px-3 py-1.5 rounded-md border border-[#30363d] flex items-center gap-1.5 transition">📁 Ẩn KB</button>
+                <button onclick="clearChat()" class="bg-[#8b0000]/40 hover:bg-[#8b0000]/70 text-red-300 text-xs px-3 py-1.5 rounded-md border border-red-900/50 transition">🗑️ Xóa hội thoại</button>
+            </div>
+        </div>
+
+        <div id="chat-messages" class="flex-1 overflow-y-auto p-6 space-y-6"></div>
+
+        <div class="p-4 bg-[#161b22] border-t border-[#30363d]">
+            <div class="max-w-5xl mx-auto flex items-center gap-2 bg-[#0d1117] border border-[#30363d] rounded-xl px-3 py-2 focus-within:border-blue-500 transition">
+                <label for="chat-file-input" class="cursor-pointer text-gray-400 hover:text-white p-1.5 rounded-lg hover:bg-[#21262d] transition" title="Đính kèm tệp dữ liệu chữ">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path>
+                    </svg>
+                </label>
+                <input type="file" id="chat-file-input" class="hidden" onchange="handleFileSelected(this)">
+
+                <input type="text" id="chat-input" placeholder="Nhập câu hỏi, dán link hoặc gửi tệp..." 
+                    class="flex-1 bg-transparent border-none outline-none text-sm text-gray-200 placeholder-gray-500 px-2"
+                    onkeypress="if(event.key === 'Enter') sendMessage()">
+
+                <span id="attached-file-badge" class="hidden text-xs bg-blue-900/40 text-blue-300 px-2 py-1 rounded border border-blue-800 flex items-center gap-1">
+                    <span id="attached-file-name"></span>
+                    <button onclick="removeAttachedFile()" class="text-red-400 hover:text-red-300 font-bold ml-1">×</button>
+                </span>
+
+                <button onclick="sendMessage()" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition flex items-center gap-1">Gửi</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CỘT PHẢI: KNOWLEDGE BASE -->
+    <div id="kb-sidebar" class="w-80 bg-[#161b22] border-l border-[#30363d] flex flex-col p-4">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-gray-400">KNOWLEDGE BASE</h3>
+            <span id="kb-file-count" class="text-xs bg-[#21262d] text-gray-300 px-2 py-0.5 rounded-full border border-[#30363d]">0 tệp</span>
+        </div>
+        <div id="kb-file-list" class="flex-1 overflow-y-auto space-y-2 mb-4"></div>
+        <button onclick="document.getElementById('kb-file-upload').click()" class="w-full bg-[#21262d] hover:bg-[#30363d] text-blue-400 border border-[#30363d] rounded-lg py-2 text-xs font-semibold transition flex items-center justify-center gap-1">+ Nạp Knowledge Base</button>
+        <input type="file" id="kb-file-upload" class="hidden" onchange="uploadKbFile(this)">
+    </div>
+
+    <script>
+        let currentGemId = "Pikey_bot";
+        let selectedFileToAttach = null;
+        let chatHistories = {};
+
+        function linkify(text) {
+            if (!text) return '';
+            const urlRegex = /(\b(https?|ftp|file):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])/ig;
+            return text.replace(urlRegex, function(url) {
+                return `<a href="${url}" target="_blank" class="text-blue-400 underline hover:text-blue-300 break-all">${url}</a>`;
+            });
+        }
+
+        async function loadAndDispatchHistory(gemId) {
+            try {
+                const response = await fetch(`/api/get_chat?gem_id=${encodeURIComponent(gemId)}`);
+                const data = await response.json();
+                let formattedHistory = [];
+                if (data.status === 'success' && data.history) {
+                    data.history.forEach(item => {
+                        if (item.user) formattedHistory.push({ sender: 'user', html: item.user });
+                        if (item.assistant) formattedHistory.push({ sender: 'bot', html: item.assistant });
+                    });
+                }
+                if (formattedHistory.length === 0) {
+                    formattedHistory = [{
+                        sender: 'bot',
+                        html: `<div class="bg-[#161b22] border border-[#30363d] rounded-xl p-4 text-sm leading-relaxed max-w-4xl shadow-sm">Đang trò chuyện với <b>${gemId}</b>. Hệ thống đã sẵn sàng!</div>`
+                    }];
+                }
+                chatHistories[gemId] = formattedHistory;
+                renderChatHistory();
+            } catch (error) {
+                console.error("Lỗi tải lịch sử chat:", error);
+            }
+        }
+
+        async function loadGems() {
+            try {
+                const res = await fetch('/gems');
+                const gems = await res.json();
+                const listEl = document.getElementById('gem-list');
+                listEl.innerHTML = '';
+                if (!Array.isArray(gems)) return;
+
+                gems.forEach(g => {
+                    const id = g.gem_id || g.id;
+                    const name = g.name || id;
+                    const desc = g.description || "";
+                    const isActive = id === currentGemId;
+                    
+                    if (!chatHistories[id]) {
+                        chatHistories[id] = [{
+                            sender: 'bot',
+                            html: `<div class="bg-[#161b22] border border-[#30363d] rounded-xl p-4 text-sm leading-relaxed max-w-4xl shadow-sm">Đang trò chuyện với <b>${name}</b>. Hệ thống đã sẵn sàng!</div>`
+                        }];
+                    }
+
+                    const div = document.createElement('div');
+                    div.className = `p-3 rounded-lg cursor-pointer transition flex items-center justify-between group ${isActive ? 'bg-[#1f6feb]/20 border border-[#1f6feb]/50 text-white' : 'hover:bg-[#21262d] text-gray-300'}`;
+                    div.innerHTML = `
+                        <div>
+                            <div class="font-semibold text-sm">${name}</div>
+                            <div class="text-xs text-gray-500">${id}</div>
+                        </div>
+                        ${id !== 'default_gem' ? `<button onclick="event.stopPropagation(); deleteGem('${id}')" class="text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 p-1">🗑️</button>` : ''}
+                    `;
+                    div.onclick = () => selectGem(id, name, desc);
+                    listEl.appendChild(div);
+                });
+            } catch (e) { console.error("Lỗi tải danh sách gems:", e); }
+        }
+
+        function selectGem(gemid, name = "", desc = "") {
+            currentGemId = gemid;
+            loadAndDispatchHistory(gemid);
+            const titleEl = document.getElementById('active-gem-title');
+            const descEl = document.getElementById('active-gem-desc');
+            if (titleEl) titleEl.innerText = name || gemid;
+            if (descEl) descEl.innerText = desc || '';
+            renderChatHistory();
+            loadKbFiles();
+            loadGems();
+        }
+
+        function renderChatHistory() {
+            const chatBox = document.getElementById('chat-messages');
+            chatBox.innerHTML = '';
+            const history = chatHistories[currentGemId] || [];
+            
+            history.forEach(item => {
+                if (item.sender === 'user') {
+                    chatBox.innerHTML += `<div class="flex flex-col items-end space-y-1"><div class="bg-blue-600 text-white rounded-xl p-3 text-sm max-w-3xl shadow-sm">${linkify(item.html)}</div></div>`;
+                } else if (item.sender === 'bot') {
+                    chatBox.innerHTML += `<div class="flex flex-col space-y-1"><div class="bg-[#161b22] border border-[#30363d] text-gray-200 rounded-xl p-3 text-sm max-w-4xl shadow-sm whitespace-pre-wrap">${linkify(item.html)}</div></div>`;
+                } else if (item.sender === 'loading') {
+                    chatBox.innerHTML += `<div id="${item.id}" class="flex flex-col space-y-1"><div class="bg-[#161b22] border border-[#30363d] text-gray-400 rounded-xl p-3 text-sm animate-pulse">${item.html}</div></div>`;
+                }
+            });
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        async function loadKbFiles() {
+            try {
+                const res = await fetch(`/gems/${currentGemId}/files`);
+                const files = await res.json();
+                const container = document.getElementById('kb-file-list');
+                document.getElementById('kb-file-count').innerText = `${files.length} tệp`;
+                container.innerHTML = '';
+                files.forEach(f => {
+                    const fname = f.filename || f.name;
+                    const item = document.createElement('div');
+                    item.className = 'flex items-center justify-between bg-[#0d1117] border border-[#30363d] px-3 py-2 rounded-md text-xs text-gray-300';
+                    item.innerHTML = `<span class="truncate max-w-[190px]" title="${fname}">${fname}</span><button onclick="deleteKbFile('${fname}')" class="text-gray-500 hover:text-red-400 font-bold ml-2">×</button>`;
+                    container.appendChild(item);
+                });
+            } catch(e) { console.error(e); }
+        }
+
+        function handleFileSelected(input) {
+            if (input.files && input.files[0]) {
+                selectedFileToAttach = input.files[0];
+                document.getElementById('attached-file-name').innerText = selectedFileToAttach.name;
+                document.getElementById('attached-file-badge').classList.remove('hidden');
+            }
+        }
+
+        function removeAttachedFile() {
+            selectedFileToAttach = null;
+            document.getElementById('chat-file-input').value = '';
+            document.getElementById('attached-file-badge').classList.add('hidden');
+        }
+
+        async function sendMessage() {
+            const inputEl = document.getElementById('chat-input');
+            const msg = inputEl.value.trim();
+            if (!msg && !selectedFileToAttach) return;
+
+            let displayHtml = msg;
+            if (selectedFileToAttach) {
+                displayHtml += `<div class="mt-2 text-xs bg-[#21262d] text-blue-300 px-2.5 py-1 rounded border border-[#30363d] inline-block">📎 Đính kèm tệp: ${selectedFileToAttach.name}</div>`;
+            }
+
+            chatHistories[currentGemId].push({ sender: 'user', html: displayHtml });
+            inputEl.value = '';
+            renderChatHistory();
+
+            const formData = new FormData();
+            formData.append("gem_id", currentGemId);
+            formData.append("message", msg || "Hãy đọc và phân tích tệp đính kèm này.");
+            if (selectedFileToAttach) formData.append("file", selectedFileToAttach);
+
+            removeAttachedFile();
+
+            const loadingId = 'loading-' + Date.now();
+            chatHistories[currentGemId].push({ sender: 'loading', id: loadingId, html: 'Đang xử lý...' });
+            renderChatHistory();
+
+            try {
+                const res = await fetch('/chat', { method: 'POST', body: formData });
+                const data = await res.json();
+                chatHistories[currentGemId] = chatHistories[currentGemId].filter(item => item.id !== loadingId);
+                chatHistories[currentGemId].push({ sender: 'bot', html: data.reply || data.message });
+            } catch (e) {
+                chatHistories[currentGemId] = chatHistories[currentGemId].filter(item => item.id !== loadingId);
+                chatHistories[currentGemId].push({ sender: 'bot', html: 'Lỗi kết nối tới server.' });
+            }
+            renderChatHistory();
+        }
+
+        async function uploadKbFile(input) {
+            if (!input.files[0]) return;
+            const formData = new FormData();
+            formData.append("file", input.files[0]);
+            formData.append("gem_id", currentGemId);
+            await fetch(`/gems/${currentGemId}/upload`, { method: 'POST', body: formData });
+            input.value = '';
+            loadKbFiles();
+        }
+
+        async function deleteKbFile(filename) {
+            if (!confirm(`Bạn có chắc muốn xóa file ${filename}?`)) return;
+            await fetch(`/gems/${currentGemId}/files/${encodeURIComponent(filename)}`, { method: 'DELETE' });
+            loadKbFiles();
+        }
+
+        async function deleteGem(id) {
+            if (!confirm(`Xóa Gem ${id}?`)) return;
+            await fetch(`/gems/${id}`, { method: 'DELETE' });
+            delete chatHistories[id];
+            loadGems();
+        }
+
+        function toggleKnowledgeBase() {
+            document.getElementById('kb-sidebar').classList.toggle('hidden');
+        }
+
+        async function clearChat() {
+            if (!confirm("Bạn có chắc chắn muốn xóa toàn bộ lịch sử trò chuyện của Gem này không?")) return;
+            try {
+                const response = await fetch('/api/clear_chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ gem_id: currentGemId })
+                });
+                const result = await response.json();
+                if (result.status === 'success') {
+                    const name = document.getElementById('active-gem-title').innerText;
+                    chatHistories[currentGemId] = [{
+                        sender: 'bot',
+                        html: `<div class="bg-[#161b22] border border-[#30363d] rounded-xl p-4 text-sm leading-relaxed max-w-4xl shadow-sm">Đang trò chuyện với <b>${name}</b>. Hệ thống đã sẵn sàng!</div>`
+                    }];
+                    renderChatHistory();
+                }
+            } catch (error) { console.error("Lỗi khi xóa lịch sử:", error); }
+        }
+
+        function openCreateGemModal() {
+            const name = prompt("Nhập tên hiển thị của Gem mới:");
+            if (!name) return;
+            const id = name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+            fetch('/gems', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ gem_id: id, name: name, description: "Trợ lý tùy chỉnh" })
+            }).then(() => loadGems());
+        }
+
+        window.onload = async () => {
+            await loadGems();
+            await loadAndDispatchHistory(currentGemId);
+            loadKbFiles();
+        };
+    </script>
+</body>
+</html>

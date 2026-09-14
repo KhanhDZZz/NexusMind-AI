@@ -1,0 +1,20 @@
+[
+    {
+        "gem_id": "default_gem",
+        "id": "default_gem",
+        "name": "Default Gem",
+        "description": "Trợ lý hệ thống mặc định"
+    },
+    {
+        "gem_id": "abc",
+        "id": "abc",
+        "name": "abc",
+        "description": "Khôi phục tự động từ thư mục hệ thống"
+    },
+    {
+        "gem_id": "Pikey_Bot",
+        "id": "Pikey_Bot",
+        "name": "Pikey_Bot",
+        "description": "Khôi phục tự động từ thư mục hệ thống"
+    }
+]
